@@ -46,7 +46,7 @@ def start_webdriver() -> webdriver.Chrome:
     """
     initialize Selenium Chrome Webdriver
     """
-    WEBDRIVER_PATH = r"C:\Users\Victor Andarcia\OneDrive - Apex Systems\Documentos\Projects\AI_ML_Apex\Bumeran-Selenium\chromedriver.exe"
+    WEBDRIVER_PATH = r"chromedriver.exe"
     return webdriver.Chrome(executable_path=WEBDRIVER_PATH)
 
 
@@ -57,15 +57,16 @@ def scrape_job_url(driver:webdriver.Chrome, url:str, raw_keywords_list:list)-> d
 
     returns a dict object containing all job info required from the url argument
     """
-
-    JOB_TITLE_XPATH = '//*[@id="header-component"]/div[1]/div/h1'
-    COMPANY_XPATH = '//*[@id="header-component"]/div[1]/div/a/h3'
-    COMPANY_RATE_XPATH = ''
-    SALARY_XPATH = '//*[@id="section-detalle"]/div[1]/div/div/div/ul[2]/li[2]/h2'
-    CITY_XPATH = '//*[@id="section-detalle"]/div[1]/div/div/div/ul[1]/li[2]/a/h2'
-    REMOTE_SCHEMA_XPATH = '//*[@id="section-detalle"]/div[1]/div/div/div/ul[1]/li[3]/a/h2'
-    DESCRIPTION_XPATH = '//*[@id="section-detalle"]/div[2]/div/div[1]'
-    DATE_PUBLISHED_XPATH = '//*[@id="section-detalle"]/div[1]/div/div/div/ul[1]/li[1]/h2'
+    xPath_dict = {
+    "JOB_TITLE_XPATH"         : '//*[@id="header-component"]/div[1]/div/h1'
+    ,"COMPANY_XPATH"           : '//*[@id="header-component"]/div[1]/div/a/h3'
+    ,"COMPANY_RATE_XPATH"      : ''
+    ,"SALARY_XPATH"            : '//*[@id="section-detalle"]/div[1]/div/div/div/ul[2]/li[2]/h2'
+    ,"CITY_XPATH"              : '//*[@id="section-detalle"]/div[1]/div/div/div/ul[1]/li[2]/a/h2'
+    ,"REMOTE_SCHEMA_XPATH"     : '//*[@id="section-detalle"]/div[1]/div/div/div/ul[1]/li[3]/a/h2'
+    ,"DESCRIPTION_XPATH"       : '//*[@id="section-detalle"]/div[2]/div/div[1]'
+    ,"DATE_PUBLISHED_XPATH"    : '//*[@id="section-detalle"]/div[1]/div/div/div/ul[1]/li[1]/h2'
+    }
 
     driver.get(url)
 
@@ -73,27 +74,30 @@ def scrape_job_url(driver:webdriver.Chrome, url:str, raw_keywords_list:list)-> d
 
     job_info = dict()
 
-    job_info['keyWords']            = raw_keywords_list
-    job_info['title_role']          = driver.find_element_by_xpath(JOB_TITLE_XPATH).text
-    job_info['description']         = driver.find_element_by_xpath(DESCRIPTION_XPATH).text
-    job_info['date_published']      = driver.find_element_by_xpath(DATE_PUBLISHED_XPATH).text
-    job_info['schema']              = driver.find_element_by_xpath(REMOTE_SCHEMA_XPATH).text
-    job_info['consulted_datetime']  = datetime.now().strftime(r"%d/%m/%Y, %H:%M")
-    job_info['source']              = url
-    job_info['company_rate']        = None #driver.find_element_by_xpath(COMPANY_RATE_XPATH).text
-    job_info['salary']              = driver.find_element_by_xpath(SALARY_XPATH).text
+    try: 
+        job_info['keyWords']            = raw_keywords_list
+        job_info['title_role']          = driver.find_element_by_xpath(xPath_dict["JOB_TITLE_XPATH"]).text
+        job_info['description']         = driver.find_element_by_xpath(xPath_dict["DESCRIPTION_XPATH"]).text
+        job_info['date_published']      = driver.find_element_by_xpath(xPath_dict["DATE_PUBLISHED_XPATH"]).text
+        job_info['schema']              = driver.find_element_by_xpath(xPath_dict["REMOTE_SCHEMA_XPATH"]).text
+        job_info['consulted_datetime']  = datetime.now().strftime(r"%d/%m/%Y, %H:%M")
+        job_info['source']              = url
+        job_info['company_rate']        = None #driver.find_element_by_xpath(COMPANY_RATE_XPATH).text
+        job_info['salary']              = driver.find_element_by_xpath(xPath_dict["SALARY_XPATH"]).text
 
-    #xPaths that already have caused an exception
-    try:
-        job_info['company']         = driver.find_element_by_xpath(COMPANY_XPATH).text
-    except NoSuchElementException:
-        job_info['company']         = driver.find_element_by_xpath(COMPANY_XPATH[:-4] + 'span/h3').text
+        #xPaths that already have caused an exception
+        try:
+            job_info['company']         = driver.find_element_by_xpath(xPath_dict["COMPANY_XPATH"]).text
+        except NoSuchElementException:
+            job_info['company']         = driver.find_element_by_xpath(xPath_dict["COMPANY_XPATH"][:-4] + 'span/h3').text
 
-    try:
-        job_info['city']            = driver.find_element_by_xpath(CITY_XPATH).text
-    except NoSuchElementException:
-        job_info['city']            = driver.find_element_by_xpath(CITY_XPATH[:-4] + 'span/h2').text
+        try:
+            job_info['city']            = driver.find_element_by_xpath(xPath_dict["CITY_XPATH"]).text
+        except NoSuchElementException:
+            job_info['city']            = driver.find_element_by_xpath(xPath_dict["CITY_XPATH"][:-4] + 'span/h2').text
     
+    except Exception as e:
+        print(e) 
 
     return job_info
 
@@ -105,7 +109,9 @@ def scrape_job_urls(filtered_jobs_urls_list:list, RAW_KEYWORDS_LIST:list) -> lis
     webdriver = start_webdriver()
     jobs_info_list = list()
 
-    for job_url in filtered_jobs_urls_list:
+    for index_number,job_url in enumerate(filtered_jobs_urls_list):
+        if index_number % 30 == 0: 
+            webdriver = start_webdriver()
         scraped_url = scrape_job_url(driver = webdriver, url=job_url, raw_keywords_list=RAW_KEYWORDS_LIST)
         jobs_info_list.append(scraped_url)
     
@@ -115,10 +121,10 @@ def json_dump_job_info(jobs_info:list) -> None:
     """
     Gives .json format to the list containing the information for all the jobs filtered by keywords
     """
-    output_filename = f'bumeran_scraped_data_{datetime.now().strftime(r"%d-%m-%Y_%H:%M")}.json'
+    output_filename = f'bumeran_scraped_data_{datetime.now().strftime(r"%d-%m-%Y_%H%M")}.json'
     with open(output_filename, 'w+', encoding='utf-8') as outfile:
         json.dump(jobs_info,outfile,ensure_ascii=False,indent=4)
-
+  
 def main(RAW_KEYWORDS_LIST:list) -> None:
     """
     Main function that will be excecuted to run web scraper and export the information to a .json format
